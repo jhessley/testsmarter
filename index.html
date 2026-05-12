@@ -318,7 +318,7 @@
       <div class="flow">
         <div class="step">
           <h3>Find Eligible Orders</h3>
-          <p>On the scheduled outbound job, query orders in the supported buckets whose bucket-specific follow-up date is due or blank and whose bucket-specific human follow-up flag is false.</p>
+          <p>On the scheduled outbound job, query orders in the supported buckets whose bucket-specific follow-up date is due or blank and whose bucket-specific human follow-up flag is false. Throttle and schedule call creation so potential office transfers do not overload staff.</p>
         </div>
         <div class="step">
           <h3>Build Retell Dynamic Variables</h3>
@@ -342,12 +342,15 @@
     <section>
       <h2>Data Sent To Retell</h2>
       <p>Known fields below come from the existing test harness and initialization logic. Exact source columns may need to be mapped to the platform schema.</p>
+      <div class="warning" style="margin-bottom: 12px;">
+        <p><strong>Important:</strong> all dynamic variable values must be converted to strings before sending to Retell. Booleans, timestamps, numbers, arrays, and objects should be serialized as strings in <code>retell_llm_dynamic_variables</code>.</p>
+      </div>
       <table>
         <thead>
           <tr>
             <th>Dynamic Variable</th>
             <th>Description</th>
-            <th>Known Use</th>
+            <th>Use</th>
           </tr>
         </thead>
         <tbody>
@@ -372,7 +375,7 @@
             <td>Used in the reason for call and voicemail message.</td>
           </tr>
           <tr>
-            <td><code>orderId</code></td>
+            <td><code>order_id</code></td>
             <td>Platform order identifier.</td>
             <td>Allows the agent/integration to reference the correct order in logs, tools, and writeback.</td>
           </tr>
@@ -382,18 +385,18 @@
             <td>Determines home sleep test vs overnight oxygen test language.</td>
           </tr>
           <tr>
-            <td><code>deviceType</code></td>
+            <td><code>device_type</code></td>
             <td>Device model/type assigned to the order.</td>
-            <td>The agent derives device instructions from <code>order_test_type</code> and <code>deviceType</code>.</td>
+            <td>The agent derives device instructions from <code>order_test_type</code> and <code>device_type</code>.</td>
           </tr>
           <tr>
-            <td><code>numberOfNights</code></td>
-            <td>Number of nights the patient should test.</td>
+            <td><code>number_of_nights</code></td>
+            <td>Number of nights the patient should test, converted to a string.</td>
             <td>Helps the agent explain how long the patient should use the device.</td>
           </tr>
           <tr>
-            <td><code>nightlyTestingConditions</code></td>
-            <td>Array of objects, one object per night of testing. Each object contains instructions for supplemental oxygen and/or PAP device use.</td>
+            <td><code>nightly_testing_conditions</code></td>
+            <td>JSON string representing an array of objects, one object per night of testing. Each object contains instructions for supplemental oxygen and/or PAP device use.</td>
             <td>Lets the agent answer testing-condition questions and guide the patient through each required night.</td>
           </tr>
           <tr>
@@ -428,28 +431,28 @@
           </tr>
           <tr>
             <td><code>order_shipped_at</code>, <code>shipment_delivered_at</code></td>
-            <td>Shipment and delivery timestamps.</td>
+            <td>Shipment and delivery timestamps, converted to strings.</td>
             <td>Used to calculate days in possession and call urgency.</td>
           </tr>
           <tr>
             <td><code>order_is_shipped_back</code>, <code>order_shipped_back_at</code></td>
-            <td>Whether the device is already on its way back.</td>
+            <td>Whether the device is already on its way back. Boolean and timestamp values must be converted to strings.</td>
             <td>Suppresses normal testing/return urgency when true.</td>
           </tr>
           <tr>
             <td><code>order_device_returned_at</code></td>
-            <td>Timestamp when the device was received back.</td>
+            <td>Timestamp when the device was received back, converted to a string.</td>
             <td>Indicates no further return reminder is needed.</td>
           </tr>
           <tr>
             <td><code>order_completed_at</code>, <code>order_report_generated_at</code></td>
-            <td>Completion/report status timestamps.</td>
+            <td>Completion/report status timestamps, converted to strings.</td>
             <td>Indicates the order may be complete and should not receive a normal reminder.</td>
           </tr>
           <tr>
             <td><code>late_fee_waived</code></td>
-            <td>Boolean or string boolean.</td>
-            <td>Prevents late-fee language when waived.</td>
+            <td>Stringified boolean. Stub to <code>false</code> for now.</td>
+            <td>Prevents late-fee language when waived. Automatic late-fee application is planned for the platform, and users will be able to waive late fees on a per-order basis.</td>
           </tr>
           <tr>
             <td><code>follow_up_notes</code></td>
@@ -510,7 +513,7 @@
       <h2>Derived Agent Context</h2>
       <p>The Retell initialization code currently derives these values from the dynamic variables above. These may be computed before the call or inside the Retell agent initialization, but the integration should treat them as part of the expected agent context.</p>
       <ul class="tag-list">
-        <li><code>daysInPossession</code></li>
+        <li><code>days_in_possession</code></li>
         <li><code>call_stage</code></li>
         <li><code>call_context</code></li>
         <li><code>needs_testing</code></li>
@@ -522,6 +525,9 @@
         <li><code>transfer_guidance</code></li>
         <li><code>voicemail_message</code></li>
       </ul>
+      <div class="callout" style="margin-top: 12px;">
+        <p><strong>Late fee waiver note:</strong> send <code>late_fee_waived</code> as <code>false</code> until the platform's automatic late-fee feature is live. The agent already knows how to handle waived late fees so the behavior is ready for the planned per-order waiver control.</p>
+      </div>
       <div class="grid" style="margin-top: 12px;">
         <div>
           <h3>Call Stages By Days In Possession</h3>
@@ -566,7 +572,7 @@
             <li>Agent name is Betty.</li>
             <li>Agent says they are calling from Test Smarter.</li>
             <li>Agent can help with device instructions and testing instructions in addition to the bucket's primary goal.</li>
-            <li>Agent derives device instructions from <code>order_test_type</code> and <code>deviceType</code>.</li>
+            <li>Agent derives device instructions from <code>order_test_type</code> and <code>device_type</code>.</li>
             <li>If voicemail is reached, agent uses <code>leave_voicemail</code> with the generated voicemail message.</li>
           </ul>
         </div>
@@ -575,7 +581,7 @@
 
     <section>
       <h2>Retell Call Creation Payload</h2>
-      <p>The test harness currently uses Retell's <code>/v2/create-phone-call</code> endpoint with this shape. All dynamic variables must be type String.</p>
+      <p>The test harness currently uses Retell's <code>/v2/create-phone-call</code> endpoint with this shape. All dynamic variable values must be strings.</p>
       <pre>{
   "from_number": "+1...",
   "to_number": "+1...",
@@ -585,11 +591,11 @@
     "patient_last_name": "Taylor",
     "patient_sex": "female",
     "provider_name": "Dr. Smith",
-    "orderId": "123456",
+    "order_id": "123456",
     "order_test_type": "HST",
-    "deviceType": "checkme o2",
-    "numberOfNights": "1",
-    "nightlyTestingConditions": '[{"oxygen":0,"useDeviceWhileTesting":"PAP"}]',
+    "device_type": "checkme o2",
+    "number_of_nights": "1",
+    "nightly_testing_conditions": "[{\"oxygen\":0,\"use_device_while_testing\":\"PAP\"}]",
     "order_bucket": "HST patient testing",
     "hst_paperwork_finished_at": "",
     "copay_paid_at": "",
@@ -668,24 +674,17 @@
         <tbody>
           <tr>
             <td>Patient agrees to complete test or return device</td>
-            <td>Set to a near-future date based on the bucket and urgency.</td>
+            <td>Set to next retry date.</td>
             <td><code>false</code></td>
             <td>Blank.</td>
             <td>Summarize patient commitment and expected action.</td>
           </tr>
           <tr>
             <td>Patient needs help, has clinical/order questions, or requests office</td>
-            <td>Set according to internal workflow.</td>
+            <td>Soonest possible date.</td>
             <td><code>true</code></td>
             <td>Use a concise reason such as help needed, clinical question, order question, or requested office.</td>
             <td>Capture the requested help and any transfer attempt.</td>
-          </tr>
-          <tr>
-            <td>Wrong person, patient unavailable, or privacy cannot be verified</td>
-            <td>Set to next retry date unless manual review is needed.</td>
-            <td>Usually <code>false</code>, unless contact data appears wrong.</td>
-            <td>Blank unless human follow-up is true; if true, explain the contact/privacy issue.</td>
-            <td>Do not include protected call reason disclosed to a non-patient.</td>
           </tr>
           <tr>
             <td>Voicemail left</td>
@@ -696,13 +695,16 @@
           </tr>
           <tr>
             <td>Bad phone number, opt-out, escalation, complaint, or unsafe automation case</td>
-            <td>Blank or hold date based on platform convention.</td>
+            <td>Soonest possible date.</td>
             <td><code>true</code></td>
             <td>Use the specific blocker, such as bad number, opt-out, escalation, complaint, or unsafe automation case.</td>
             <td>Capture the reason clearly for the human queue.</td>
           </tr>
         </tbody>
       </table>
+      <div class="callout" style="margin-top: 12px;">
+        <p><strong>Transfer follow-up:</strong> when the call is transferred to the office, the post-call writeback should set <code>human_follow_up_required</code> to true with the earliest possible follow-up date in case the transfer fails. When staff takes the call, they should set the next follow-up date and decide whether the order still requires human follow-up.</p>
+      </div>
     </section>
 
     <section>
