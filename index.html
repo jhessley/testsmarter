@@ -370,6 +370,36 @@
             <td>Used to select "Miss" or "Mister" in the formal greeting.</td>
           </tr>
           <tr>
+            <td><code>patient_mobile_phone</code></td>
+            <td>Mapped from <code>patients.mobile_phone</code>.</td>
+            <td>Primary mobile contact value for call context and verification.</td>
+          </tr>
+          <tr>
+            <td><code>patient_home_phone</code></td>
+            <td>Mapped from <code>patients.home_phone</code>.</td>
+            <td>Home phone contact value for call context and verification.</td>
+          </tr>
+          <tr>
+            <td><code>patient_email</code></td>
+            <td>Mapped from <code>patients.email</code>.</td>
+            <td>Email contact value for patient context and any support discussion.</td>
+          </tr>
+          <tr>
+            <td><code>patient_primary_address_state</code></td>
+            <td>Mapped from <code>patients.primary_address_state</code>.</td>
+            <td>Patient primary address state for location context.</td>
+          </tr>
+          <tr>
+            <td><code>patient_delivery_address_street_state</code></td>
+            <td>Mapped from <code>patients.delivery_address_street_state</code>.</td>
+            <td>Delivery address state for shipment and device-return context.</td>
+          </tr>
+          <tr>
+            <td><code>patient_language</code></td>
+            <td>Mapped from <code>patients.language</code>.</td>
+            <td>Preferred language context for the agent and any transfer/human follow-up note.</td>
+          </tr>
+          <tr>
             <td><code>provider_name</code></td>
             <td>Ordering provider or office name.</td>
             <td>Used in the reason for call and voicemail message.</td>
@@ -403,6 +433,11 @@
             <td><code>order_bucket</code></td>
             <td>Current platform bucket/status.</td>
             <td>Determines whether the order needs scheduling, testing, or return follow-up.</td>
+          </tr>
+          <tr>
+            <td><code>order_progress</code></td>
+            <td>Mapped from <code>orders.progress</code>.</td>
+            <td>Additional platform order progress context for agent reasoning and writeback notes.</td>
           </tr>
           <tr>
             <td><code>hst_paperwork_finished_at</code></td>
@@ -590,6 +625,12 @@
     "patient_first_name": "Jamie",
     "patient_last_name": "Taylor",
     "patient_sex": "female",
+    "patient_mobile_phone": "+13862884508",
+    "patient_home_phone": "",
+    "patient_email": "jamie.taylor@example.com",
+    "patient_primary_address_state": "FL",
+    "patient_delivery_address_street_state": "FL",
+    "patient_language": "en",
     "provider_name": "Dr. Smith",
     "order_id": "123456",
     "order_test_type": "HST",
@@ -597,6 +638,7 @@
     "number_of_nights": "1",
     "nightly_testing_conditions": "[{\"oxygen\":0,\"use_device_while_testing\":\"PAP\"}]",
     "order_bucket": "HST patient testing",
+    "order_progress": "patient_testing",
     "hst_paperwork_finished_at": "",
     "copay_paid_at": "",
     "hst_payment_bypassed": "false",
