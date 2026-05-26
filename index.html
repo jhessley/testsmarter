@@ -246,7 +246,7 @@
       <h2>Purpose</h2>
       <p>This document describes the integration flow between the Test Smarter platform and the Retell outbound agent. The platform owns order selection, patient/order data lookup, call scheduling, and post-call updates. Retell owns the phone conversation and returns the outcome needed to schedule the next action.</p>
       <div class="callout">
-        <p><strong>Core rule:</strong> initiate an outbound call when an order is in one of the eligible buckets, that bucket's follow-up date is either blank or less than or equal to today's date, and the order's <code>human_follow_up_required</code> value is false.</p>
+        <p><strong>Core rule:</strong> initiate an outbound call when an order is in one of the eligible buckets, that bucket's follow-up date is either blank or less than or equal to today's date, the order's <code>human_follow_up_required</code> value is false, and the current time is inside the allowed call window for that call reason.</p>
         <p>The backend is responsible for selecting the correct bucket-specific follow-up date, note, and human follow-up namespace. This page uses normalized names to describe the flow.</p>
       </div>
     </section>
@@ -308,8 +308,47 @@
             <li>The order's <code>human_follow_up_required</code> value is false.</li>
             <li>Patient has a callable phone number.</li>
             <li>Order has not moved to a terminal state that should suppress outreach, such as device returned, report generated, or order completed.</li>
+            <li>The current local time is inside the call window for the bucket/call reason.</li>
           </ol>
         </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Call Windows</h2>
+      <p>Outbound jobs should apply a call window after selecting eligible orders and before creating Retell calls. Use the patient's local time zone when available; otherwise use the platform's configured default business time zone.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Call Reason</th>
+            <th>Buckets</th>
+            <th>Allowed Window</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HST scheduling, paperwork, or payment</td>
+            <td>HST patient scheduling</td>
+            <td>Office hours only.</td>
+            <td>These calls are more likely to require a live office transfer or immediate staff help.</td>
+          </tr>
+          <tr>
+            <td>Testing reminder</td>
+            <td>HST patient testing, POX delivered</td>
+            <td>Reasonable patient-contact hours, including after hours.</td>
+            <td>These calls are reminders and instruction support, so they can run outside office hours as long as the time is not too early or too late.</td>
+          </tr>
+          <tr>
+            <td>Return reminder</td>
+            <td>HST pending return, POX pending return</td>
+            <td>Reasonable patient-contact hours, including after hours.</td>
+            <td>These calls primarily ask the patient to return the device and do not usually require staff to be available immediately.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout" style="margin-top: 12px;">
+        <p><strong>Recommended defaults:</strong> define office hours from the operating team's configuration, such as Monday through Friday, 9:00 AM to 5:00 PM local time. Define reasonable patient-contact hours separately, such as 9:00 AM to 8:00 PM local time, and exclude any legally restricted calling times or organization-specific quiet periods.</p>
       </div>
     </section>
 
@@ -318,7 +357,7 @@
       <div class="flow">
         <div class="step">
           <h3>Find Eligible Orders</h3>
-          <p>On the scheduled outbound job, query orders in the supported buckets whose bucket-specific follow-up date is due or blank and whose bucket-specific human follow-up flag is false. Throttle and schedule call creation so potential office transfers do not overload staff.</p>
+          <p>On the scheduled outbound job, query orders in the supported buckets whose bucket-specific follow-up date is due or blank and whose bucket-specific human follow-up flag is false. Apply the bucket-specific call window before creating calls. Throttle HST patient scheduling calls so potential office transfers do not overload staff.</p>
         </div>
         <div class="step">
           <h3>Build Retell Dynamic Variables</h3>
@@ -436,8 +475,13 @@
           </tr>
           <tr>
             <td><code>order_progress</code></td>
-            <td>Mapped from <code>orders.progress</code>.</td>
-            <td>Additional platform order progress context for agent reasoning and writeback notes.</td>
+            <td>Stringified JSON object mapped from <code>orders.progress</code>.</td>
+            <td>Source-of-truth progress flags used to determine whether the call is for HST scheduling, HST testing, POX delivered/testing, or pending return.</td>
+          </tr>
+          <tr>
+            <td><code>order_copay</code></td>
+            <td>Stringified float mapped from <code>orders.copay</code>.</td>
+            <td>Copay amount for HST scheduling and payment follow-up. For example, a <code>25.5</code> copay should be sent as <code>"25.5"</code>.</td>
           </tr>
           <tr>
             <td><code>hst_paperwork_finished_at</code></td>
@@ -638,7 +682,8 @@
     "number_of_nights": "1",
     "nightly_testing_conditions": "[{\"oxygen\":0,\"use_device_while_testing\":\"PAP\"}]",
     "order_bucket": "HST patient testing",
-    "order_progress": "patient_testing",
+    "order_progress": "{\"is_active\":true,\"is_open\":true,\"is_hst_open\":true,\"is_hst_patient_testing\":true,\"is_pending_return\":null,\"is_tpd_delivered\":null}",
+    "order_copay": "25.5",
     "hst_paperwork_finished_at": "",
     "copay_paid_at": "",
     "hst_payment_bypassed": "false",
